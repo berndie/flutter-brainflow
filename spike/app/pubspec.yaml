@@ -1,0 +1,27 @@
+name: app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  brainflow_hook_spike:
+    path: ../m0_hook
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+hooks:
+  user_defines:
+    brainflow_hook_spike:
+      lib_dir: /tmp/claude-1000/-workspaces-flutter-brainflow/270bd2b0-9b47-4600-b27e-163cb0f4bd4b/scratchpad/x/linux/
+      android_dir: /tmp/claude-1000/-workspaces-flutter-brainflow/270bd2b0-9b47-4600-b27e-163cb0f4bd4b/scratchpad/x/android/jni/

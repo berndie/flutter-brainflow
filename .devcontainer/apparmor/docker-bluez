@@ -1,0 +1,51 @@
+# AppArmor profile for the devcontainer: Docker's docker-default rules plus
+# access to BlueZ on the host's system D-Bus, so flutter_muse_linux (and
+# bluetoothctl) can reach a physical Muse headband.
+#
+# Only needed on AppArmor hosts (e.g. Ubuntu) where the host's dbus-daemon
+# rejects messages from containers running under docker-default. Load it on
+# the HOST (it is reloaded at every boot from /etc/apparmor.d):
+#
+#   sudo cp .devcontainer/apparmor/docker-bluez /etc/apparmor.d/
+#   sudo apparmor_parser -r -W /etc/apparmor.d/docker-bluez
+#
+# and add to "runArgs" in devcontainer.json:
+#
+#   "--security-opt", "apparmor=docker-bluez"
+
+#include <tunables/global>
+
+profile docker-bluez flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # --- same as Docker's docker-default ---
+  network,
+  capability,
+  file,
+  umount,
+  signal (receive) peer=unconfined,
+  signal (send,receive) peer=docker-bluez,
+  ptrace (trace,read,tracedby,readby) peer=docker-bluez,
+
+  deny mount,
+  deny @{PROC}/* w,
+  deny @{PROC}/{[^1-9],[^1-9][^0-9],[^1-9s][^0-9y][^0-9s],[^1-9][^0-9][^0-9][^0-9/]*}/** w,
+  deny @{PROC}/sys/[^k]** w,
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/devices/virtual/powercap/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # --- added: the system bus, sending only to the bus itself and BlueZ ---
+  # (replies to our own calls are allowed implicitly; this covers signals)
+  dbus (send) bus=system peer=(name=org.freedesktop.DBus),
+  dbus (send) bus=system peer=(name=org.bluez),
+  dbus (receive) bus=system,
+}

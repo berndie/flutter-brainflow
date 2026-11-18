@@ -1,0 +1,7 @@
+name: brainflow_m0_spike
+description: Throwaway M0 spike - load BrainFlow via dart:ffi and stream the synthetic board.
+publish_to: none
+environment:
+  sdk: ^3.9.0
+dependencies:
+  ffi: ^2.1.0
