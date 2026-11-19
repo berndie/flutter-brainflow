@@ -1,0 +1,50 @@
+// Android Gradle module of flutter_brainflow.
+//
+// The BrainFlow .so files are bundled by hook/build.dart (native assets). This
+// module only exists to ship SimpleBLE's Java bridge classes, which SimpleBLE
+// (and therefore BrainFlow's BLE boards) look up via JNI at runtime.
+
+group = "org.brainflow.flutter_brainflow"
+version = "1.0"
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:9.1.0")
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+android {
+    namespace = "org.brainflow.flutter_brainflow"
+
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        // BrainFlow's Android libraries need API 31 (libnativehelper JNI API).
+        minSdk = 31
+        consumerProguardFiles("proguard-rules.pro")
+    }
+}
+
+dependencies {
+    // From brainflow-android.aar (libs/simpleble-bridge.jar), see android/libs/README.md.
+    implementation(files("libs/simpleble-bridge.jar"))
+}
