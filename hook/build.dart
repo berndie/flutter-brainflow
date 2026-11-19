@@ -35,6 +35,7 @@ void main(List<String> args) async {
     final libDir = input.userDefines.path('lib_dir');
     if (libDir != null) {
       libs = _libsFromDir(libDir, os, arch);
+      output.dependencies.addAll(libs.values);
     } else {
       final target = targetLibs(os, arch);
       if (target == null) {
@@ -45,6 +46,10 @@ void main(List<String> args) async {
         );
       }
       final archive = await _download(target.archive, _cacheDir(input));
+      // Depend on the archive, not on the files extracted from it: those are
+      // written during this build, which Flutter reports as "File modified
+      // during build".
+      output.dependencies.add(archive.uri);
       libs = _extract(
         archive,
         target,
@@ -62,7 +67,6 @@ void main(List<String> args) async {
           file: file,
         ),
       );
-      output.dependencies.add(file);
     }
   });
 }
