@@ -126,6 +126,7 @@ dart format .
 flutter analyze
 flutter test test/unit                   # fast, no native libs needed
 flutter test test/native                 # needs BrainFlow libs (hook download or lib_dir user-define)
+cd example && flutter test               # example app against the real libs
 cd example && flutter run -d linux       # or an Android device via adb
 ```
 
@@ -189,6 +190,12 @@ and run native tests if you touched `ffi/`, `board/`, `data_filter/`, `ml/` or
 - Always `releaseSession` (and `releaseAllSessions` on hot restart in debug),
   otherwise the next `prepareSession` for the same board/params fails because
   the session already exists or the port is still open.
+- Widget tests: `BoardSession`'s poll `Timer` lives in the fake-async zone
+  while its `Isolate.run` calls need real time. Advance both:
+  `tester.runAsync(() => Future.delayed(d))` then `tester.pump(d)`.
+- Hook dependencies must be *inputs* (the cached archive, `lib_dir` files),
+  never files the hook itself writes, or Flutter reports "File modified
+  during build".
 - The devcontainer bind-mounts the host D-Bus so BlueZ (and a real headband)
   is reachable from Linux builds; see `.devcontainer/`. In M0 it was not
   reachable (`bluetoothctl` couldn't connect; probably the AppArmor note in
@@ -198,7 +205,7 @@ and run native tests if you touched `ffi/`, `board/`, `data_filter/`, `ml/` or
 
 Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
 
-**M0 – Spike (done 2026-11-18, code in `spike/`; delete once M1 lands)**
+**M0 – Spike (done 2026-11-18; `spike/` removed 2026-11-19, see git history)**
 - Linux: synthetic board streamed at 250 Hz via `DynamicLibrary.open` and via
   hook + `@Native`; session prepared in one isolate, read in another
   (state is process-global). BLE path loads bundled `libsimpleble-c.so`.
@@ -207,7 +214,8 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
 - **Still open:** run on a physical Android device (synthetic board, then a
   BLE board such as `MUSE_2_BOARD`) to confirm loading and that SimpleBLE
   finds its bridge classes. Deferred: no Android hardware available yet, so
-  Android stays "builds and packages", not "verified on device".
+  Android stays "builds and packages", not "verified on device". The
+  checklist is in `example/README.md`.
 
 **M1 – Package skeleton and native delivery (done 2026-11-19)**
 - `flutter create --template=package_ffi` (or equivalent) plus an `android/`
@@ -233,10 +241,11 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
   `addStreamer`/`deleteStreamer`, static info getters (sampling rate, channel
   lists, descr), logging, version.
 
-**M3 – `BoardSession` + example app (first usable release, 0.1.0)**
+**M3 – `BoardSession` + example app (done 2026-11-19, not tagged yet)**
 - Async connect/disconnect, polling interval config, `Stream<BoardData>`,
   state (`disconnected/connecting/ready/streaming`), proper disposal.
 - Example: pick board, connect, live EEG plot with the synthetic board.
+  `example/test/app_test.dart` drives it against the real library.
 
 **M4 – `DataFilter`**
 - Filters (band-pass/stop, low/high-pass, environmental noise), detrend,

@@ -1,0 +1,27 @@
+name: flutter_brainflow_example
+description: "Demo of flutter_brainflow: connect a board and plot live EEG."
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_brainflow:
+    path: ..
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+# To use your own BrainFlow build instead of the downloaded release:
+# hooks:
+#   user_defines:
+#     flutter_brainflow:
+#       lib_dir: /path/to/brainflow/libs

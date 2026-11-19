@@ -12,5 +12,8 @@ Versions track BrainFlow: `<ourVersion>+bf<brainflowVersion>` (from M6 on).
 - `BoardShim`: synchronous 1:1 wrapper of BrainFlow's board controller
   (session lifecycle, data access, markers, config, streamers, board info,
   logging).
+- `BoardSession`: async layer (connect/stream in background isolates,
+  `Stream<BoardData>` per preset, `states` stream, `dispose`).
+- Example app: board picker, live EEG plot (Linux, Android).
 - `BoardData`, `BoardDescription`, `BrainFlowInputParams`,
   `BrainFlowException`.

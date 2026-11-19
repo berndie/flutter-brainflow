@@ -36,8 +36,26 @@ the [BrainFlow docs](https://brainflow.readthedocs.io/) apply directly.
 Errors throw `BrainFlowException`.
 
 `BoardShim` calls block; `prepareSession` can take seconds for Bluetooth
-boards. Call it from another isolate (`Isolate.run(board.prepareSession)`):
-session state is process-wide, so that works.
+boards. In a Flutter app use `BoardSession`, which runs slow calls in a
+background isolate and streams the data:
+
+```dart
+final session = BoardSession(
+  BoardIds.muse2Board,
+  inputParams: const BrainFlowInputParams(timeout: 15),
+);
+await session.connect();
+final eegRows = BoardShim.getEegChannels(BoardIds.muse2Board);
+session.data().listen((block) => plot(block.rows(eegRows)));
+await session.startStreaming();
+// ...
+await session.dispose(); // stops and releases the board
+```
+
+In debug builds, call `BoardShim.releaseAllSessions()` at startup: after a
+hot restart the native library still holds the previous run's sessions.
+
+See `example/` for a complete app.
 
 ## Native libraries
 
