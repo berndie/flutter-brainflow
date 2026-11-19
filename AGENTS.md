@@ -78,6 +78,7 @@ flutter_brainflow/
 │       │   │                    #   log levels, exit codes, filter types...)
 │       │   ├── exit_codes.dart  # BrainFlowException
 │       │   ├── input_params.dart# BrainFlowInputParams -> JSON
+│       │   ├── model_params.dart# BrainFlowModelParams -> JSON
 │       │   ├── board_description.dart  # parsed get_board_descr JSON
 │       │   └── board_data.dart  # row-major matrix + row views
 │       ├── board/
@@ -259,7 +260,9 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
   `BoardData`. Validation the Python binding does in Python (shapes,
   activity-index period) is replicated in Dart.
 
-**M5 – `MLModel`** — prepare/predict/release with metrics and classifiers.
+**M5 – `MLModel` (done 2026-11-19)** — prepare/predict/release with metrics
+and classifiers. Verified: the bundled `libonnxruntime_x64.so` is found by
+`libMLModule` (native test runs a hand-encoded Identity ONNX model).
 
 **M6 – Polish & publish**
 - More platforms (macOS/Windows), API docs, pub.dev score, versioning that

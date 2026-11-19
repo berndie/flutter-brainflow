@@ -10,3 +10,5 @@ export 'src/core/board_description.dart' show BoardDescription;
 export 'src/core/constants.g.dart';
 export 'src/core/exit_codes.dart' show BrainFlowException;
 export 'src/core/input_params.dart' show BrainFlowInputParams;
+export 'src/core/model_params.dart' show BrainFlowModelParams;
+export 'src/ml/ml_model.dart' show MLModel;

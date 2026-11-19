@@ -17,6 +17,8 @@ Versions track BrainFlow: `<ourVersion>+bf<brainflowVersion>` (from M6 on).
 - `DataFilter`: filters, denoising, wavelets, FFT/PSD/Welch, band powers,
   CSP, ICA, PPG heart rate and SpO2, activity index, file read/write,
   logging.
+- `MLModel` + `BrainFlowModelParams`: built-in mindfulness/restfulness,
+  ONNX and dynamic-library classifiers.
 - Example app: board picker, live EEG plot and band powers (Linux, Android).
 - `BoardData`, `BoardDescription`, `BrainFlowInputParams`,
   `BrainFlowException`.
