@@ -1,5 +1,6 @@
 // Drives the example against the real native library (synthetic board).
 import 'package:flutter_brainflow/flutter_brainflow.dart';
+import 'package:flutter_brainflow_example/band_powers.dart';
 import 'package:flutter_brainflow_example/main.dart';
 import 'package:flutter_brainflow_example/signal_plot.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +30,13 @@ void main() {
     expect(plot.buffer.channels, 16);
     expect(plot.buffer.length, greaterThan(50));
     expect(plot.labels.first, 'Fz');
+
+    // Band powers need 2 s of data.
+    await settle(const Duration(milliseconds: 1500));
+    await settle(const Duration(milliseconds: 600));
+    final bars = tester.widget<BandPowerBars>(find.byType(BandPowerBars));
+    expect(bars.powers?.avg, hasLength(5));
+    expect(find.textContaining('%'), findsNWidgets(5));
 
     await tester.tap(find.text('Disconnect'));
     await settle(const Duration(milliseconds: 500));

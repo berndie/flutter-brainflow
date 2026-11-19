@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_brainflow/flutter_brainflow.dart';
 
+import 'band_powers.dart';
 import 'signal_buffer.dart';
 import 'signal_plot.dart';
 
@@ -59,6 +60,8 @@ class _LiveEegPageState extends State<LiveEegPage> {
   List<int> _eegRows = const [];
   List<String> _eegNames = const [];
   int _samplingRate = 0;
+  BandPowers? _bandPowers;
+  DateTime _lastBandPowers = DateTime(0);
   String? _error;
 
   BoardSessionState get _state =>
@@ -89,6 +92,7 @@ class _LiveEegPageState extends State<LiveEegPage> {
         : [for (final r in _eegRows) 'ch$r'];
     _samplingRate = descr.samplingRate ?? 250;
     _buffer = SignalBuffer(_eegRows.length, _samplingRate * _windowSeconds);
+    _bandPowers = null;
 
     final session = BoardSession(
       _boardId,
@@ -102,7 +106,10 @@ class _LiveEegPageState extends State<LiveEegPage> {
       if (mounted) setState(() {});
     });
     _dataSub = session.data().listen(
-      (block) => _buffer.addAll(block.rows(_eegRows)),
+      (block) {
+        _buffer.addAll(block.rows(_eegRows));
+        _updateBandPowers();
+      },
       onError: (Object e) {
         if (mounted) setState(() => _error = '$e');
       },
@@ -114,6 +121,24 @@ class _LiveEegPageState extends State<LiveEegPage> {
       rethrow;
     }
   });
+
+  /// Recomputes band powers over the plotted window, at most twice a second.
+  void _updateBandPowers() {
+    final now = DateTime.now();
+    if (now.difference(_lastBandPowers) < const Duration(milliseconds: 500) ||
+        _buffer.length < 2 * _samplingRate) {
+      return;
+    }
+    _lastBandPowers = now;
+    final window = _buffer.toBoardData();
+    final powers = DataFilter.getAvgBandPowers(
+      window,
+      [for (var c = 0; c < window.numRows; c++) c],
+      _samplingRate,
+      true,
+    );
+    setState(() => _bandPowers = powers);
+  }
 
   Future<void> _start() => _run(() => _session!.startStreaming());
 
@@ -212,6 +237,10 @@ class _LiveEegPageState extends State<LiveEegPage> {
                   ? const Center(child: Text('Pick a board and connect.'))
                   : SignalPlot(buffer: _buffer, labels: _eegNames),
             ),
+            if (!disconnected) ...[
+              const SizedBox(height: 16),
+              BandPowerBars(powers: _bandPowers),
+            ],
           ],
         ),
       ),

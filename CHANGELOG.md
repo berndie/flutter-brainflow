@@ -14,6 +14,9 @@ Versions track BrainFlow: `<ourVersion>+bf<brainflowVersion>` (from M6 on).
   logging).
 - `BoardSession`: async layer (connect/stream in background isolates,
   `Stream<BoardData>` per preset, `states` stream, `dispose`).
-- Example app: board picker, live EEG plot (Linux, Android).
+- `DataFilter`: filters, denoising, wavelets, FFT/PSD/Welch, band powers,
+  CSP, ICA, PPG heart rate and SpO2, activity index, file read/write,
+  logging.
+- Example app: board picker, live EEG plot and band powers (Linux, Android).
 - `BoardData`, `BoardDescription`, `BrainFlowInputParams`,
   `BrainFlowException`.

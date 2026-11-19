@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_brainflow/flutter_brainflow.dart';
 
 /// Fixed-size rolling window of the last [capacity] samples per channel.
 class SignalBuffer extends ChangeNotifier {
@@ -34,6 +35,17 @@ class SignalBuffer extends ChangeNotifier {
   /// Sample [index] (0 = oldest) of [channel].
   double at(int channel, int index) =>
       _data[channel][(_start + index) % capacity];
+
+  /// The window as a `channels x length` matrix, oldest sample first.
+  BoardData toBoardData() {
+    final out = Float64List(channels * _length);
+    for (var c = 0; c < channels; c++) {
+      for (var i = 0; i < _length; i++) {
+        out[c * _length + i] = at(c, i);
+      }
+    }
+    return BoardData(channels, _length, out);
+  }
 
   void clear() {
     _start = 0;

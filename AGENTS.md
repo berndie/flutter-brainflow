@@ -193,6 +193,9 @@ and run native tests if you touched `ffi/`, `board/`, `data_filter/`, `ml/` or
 - Widget tests: `BoardSession`'s poll `Timer` lives in the fake-async zone
   while its `Isolate.run` calls need real time. Advance both:
   `tester.runAsync(() => Future.delayed(d))` then `tester.pump(d)`.
+- Data handler calls copy Dart → native → Dart. Fine for EEG-sized arrays;
+  if it ever shows up in profiles, `isLeaf` bindings can take
+  `Float64List.address` directly without copying.
 - Hook dependencies must be *inputs* (the cached archive, `lib_dir` files),
   never files the hook itself writes, or Flutter reports "File modified
   during build".
@@ -247,10 +250,14 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
 - Example: pick board, connect, live EEG plot with the synthetic board.
   `example/test/app_test.dart` drives it against the real library.
 
-**M4 – `DataFilter`**
+**M4 – `DataFilter` (done 2026-11-19)**
 - Filters (band-pass/stop, low/high-pass, environmental noise), detrend,
   denoising, FFT/PSD (Welch), band powers, downsampling, file read/write.
-  Functions that mutate in place take/return `Float64List`.
+  Functions that mutate in place take/return `Float64List`. Done: all 35
+  data handler functions. Multi-value results are named records (`Psd`,
+  `Spectrum`, `WaveletOutput`, `BandPowers`); matrices (CSP, ICA, files) are
+  `BoardData`. Validation the Python binding does in Python (shapes,
+  activity-index period) is replicated in Dart.
 
 **M5 – `MLModel`** — prepare/predict/release with metrics and classifiers.
 

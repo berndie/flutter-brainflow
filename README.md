@@ -55,6 +55,19 @@ await session.dispose(); // stops and releases the board
 In debug builds, call `BoardShim.releaseAllSessions()` at startup: after a
 hot restart the native library still holds the previous run's sessions.
 
+Signal processing works on rows (`Float64List`); in-place functions modify
+the row inside the `BoardData`:
+
+```dart
+final rate = BoardShim.getSamplingRate(BoardIds.syntheticBoard);
+for (final row in data.rows(eegRows)) {
+  DataFilter.detrend(row, DetrendOperations.constant);
+  DataFilter.performBandpass(row, rate, 1, 40, 4, FilterTypes.butterworth, 0);
+}
+final bands = DataFilter.getAvgBandPowers(data, eegRows, rate, true);
+print('alpha: ${bands.avg[2]}');
+```
+
 See `example/` for a complete app.
 
 ## Native libraries
