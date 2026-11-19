@@ -267,3 +267,18 @@ and classifiers. Verified: the bundled `libonnxruntime_x64.so` is found by
 **M6 – Polish & publish**
 - More platforms (macOS/Windows), API docs, pub.dev score, versioning that
   tracks BrainFlow (`<ourVersion>+bf<brainflowVersion>` in CHANGELOG).
+- Findings so far (2026-11-19), not yet acted on because nothing here can
+  run them:
+  - `compiled_libs.tar` has Windows x64 (`BoardController.dll`, ...) and x86
+    (`*32.dll`) and macOS **universal** dylibs (x86_64 + arm64), but ONNX
+    runtime only as `onnxruntime_x64.dll`/`_x86.dll` and
+    `libonnxruntime_arm64.dylib`; simpleble on macOS is
+    `libsimpleble-c.dylib` (plus versioned copies, bundle only one).
+  - macOS risk: Flutter wraps each code asset in its own `.framework`, so
+    BrainFlow's "dlopen helpers from my own directory" may not find them.
+    Verify on a Mac before adding the target; `lib_dir` works meanwhile only
+    if that is solved too.
+  - Decisions needed from the maintainer before publishing: package
+    license (no `LICENSE` yet), `publish_to`, and whether to host per-target
+    repackaged archives as GitHub release assets (hook currently downloads
+    the 118 MB / 100 MB upstream archives once into `~/.cache`).
