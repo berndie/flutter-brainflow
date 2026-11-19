@@ -58,39 +58,41 @@ and processing) to Dart/Flutter apps.
 
 ```
 flutter_brainflow/
-├── AGENTS.md
+├── AGENTS.md, README.md, CHANGELOG.md
 ├── pubspec.yaml
-├── ffigen.yaml                  # one config per header group is fine
 ├── hook/
 │   ├── build.dart               # downloads/locates libs, registers CodeAssets
-│   └── brainflow_version.dart   # single source of truth for the version
+│   └── brainflow_release.dart   # single source of truth: version, sha256, libs
 ├── android/                     # Gradle only: simpleble-bridge.jar, minSdk 31
 ├── third_party/brainflow/include/  # vendored headers for the pinned version
 ├── lib/
 │   ├── flutter_brainflow.dart   # public exports only
 │   └── src/
 │       ├── ffi/                 # the ONLY place that imports dart:ffi
-│       │   ├── bindings.g.dart  # generated, never edit by hand
-│       │   └── native_utils.dart# string/array marshalling, checkExitCode()
+│       │   ├── *.g.dart         # ffigen output (@Native), never edit by hand
+│       │   ├── native_utils.dart# string/array marshalling, checkExitCode()
+│       │   └── board_controller.dart, ... # Dart-typed wrappers: ints,
+│       │                        #   Strings, Float64List in; no Pointers out
 │       ├── core/                # pure Dart, no FFI: easy to unit test
-│       │   ├── board_ids.dart
-│       │   ├── exit_codes.dart  # BrainFlowExitCode + BrainFlowException
+│       │   ├── constants.g.dart # all BrainFlow enums (BoardIds, presets,
+│       │   │                    #   log levels, exit codes, filter types...)
+│       │   ├── exit_codes.dart  # BrainFlowException
 │       │   ├── input_params.dart# BrainFlowInputParams -> JSON
-│       │   ├── presets.dart, log_levels.dart
 │       │   ├── board_description.dart  # parsed get_board_descr JSON
-│       │   └── board_data.dart  # row-major matrix + channel accessors
+│       │   └── board_data.dart  # row-major matrix + row views
 │       ├── board/
 │       │   ├── board_shim.dart  # sync wrapper
 │       │   └── board_session.dart # async + Stream layer
-│       ├── data_filter/         # DataFilter + its enums
-│       └── ml/                  # MLModel + its enums
+│       ├── data_filter/         # DataFilter
+│       └── ml/                  # MLModel
 ├── test/
 │   ├── unit/                    # pure Dart, no native libs
 │   └── native/                  # real libs, SYNTHETIC_BOARD / PLAYBACK_FILE_BOARD
 ├── example/                     # Flutter app: connect, live plot, band powers
 └── tool/
     ├── update_brainflow.sh      # bump version: headers + hook + regen bindings
-    └── ...
+    ├── ffigen.dart              # regenerate lib/src/ffi/*.g.dart
+    └── generate_constants.dart  # regenerate lib/src/core/constants.g.dart
 ```
 
 Dependency direction: `board/`, `data_filter/`, `ml/` → `ffi/` + `core/`.
@@ -118,7 +120,8 @@ public export.
 
 ```sh
 flutter pub get
-dart run ffigen --config ffigen.yaml     # regenerate bindings
+dart run tool/ffigen.dart                # regenerate bindings (needs libclang)
+dart run tool/generate_constants.dart    # regenerate enums
 dart format .
 flutter analyze
 flutter test test/unit                   # fast, no native libs needed
@@ -176,6 +179,13 @@ and run native tests if you touched `ffi/`, `board/`, `data_filter/`, `ml/` or
   freeing.
 - `get_board_data` removes data from the ring buffer; `get_current_board_data`
   does not. Don't mix them up in `BoardSession`.
+- Before `start_stream` there is no ring buffer: `get_board_data_count` and
+  friends fail with `INVALID_ARGUMENTS_ERROR` (13). A second
+  `prepare_session` for an already prepared board fails with
+  `ANOTHER_BOARD_IS_CREATED_ERROR` (16).
+- Channel getters for kinds a board lacks fail with
+  `UNSUPPORTED_BOARD_ERROR` (14) (Python behaves the same). `exg_channels` is
+  derived (EEG ∪ EMG ∪ ECG ∪ EOG) and is not in the `get_board_descr` JSON.
 - Always `releaseSession` (and `releaseAllSessions` on hot restart in debug),
   otherwise the next `prepareSession` for the same board/params fails because
   the session already exists or the port is still open.
@@ -199,20 +209,23 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
   finds its bridge classes. Deferred: no Android hardware available yet, so
   Android stays "builds and packages", not "verified on device".
 
-**M1 – Package skeleton and native delivery**
+**M1 – Package skeleton and native delivery (done 2026-11-19)**
 - `flutter create --template=package_ffi` (or equivalent) plus an `android/`
   Gradle part for `simpleble-bridge.jar`; vendored headers, `ffigen.yaml`
   (`ffi-native` with asset ids), `tool/update_brainflow.sh`.
 - `hook/build.dart`: download + sha256 check + `lib_dir` user-define override.
   The upstream archives are 118 MB / 100 MB and contain every OS; prefer
   repackaging them per OS/ABI (~5 MB each) into our own GitHub release assets
-  via `tool/`, so app builds download only what they need.
+  via `tool/`, so app builds download only what they need. **Not done yet:**
+  the hook downloads the upstream archives once into `~/.cache` and extracts
+  only the needed libs; repackaging is a pre-publish (M6) concern.
 - Decide which vendor-SDK helpers to ship on Linux (unicorn, eego, Synchroni,
   ...): check licenses; default to core + BLE (SimpleBLE, Muse, Ganglion,
-  BrainBit, BrainFlowBluetooth).
+  BrainBit, BrainFlowBluetooth). Done: core + BLE + ONNX runtime (MIT);
+  vendor SDKs only via `lib_dir`.
 - CI (GitHub Actions, Linux): analyze, unit tests, native tests.
 
-**M2 – Core types + `BoardShim`**
+**M2 – Core types + `BoardShim` (done 2026-11-19)**
 - `core/`: board ids, presets, log levels, exit codes/exception,
   input params, board description, `BoardData`.
 - `BoardShim`: prepare/start/stop/release, `getBoardData`,
