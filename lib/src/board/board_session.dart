@@ -63,7 +63,9 @@ class BoardSession {
   final _dataControllers = <BrainFlowPresets, StreamController<BoardData>>{};
   Timer? _timer;
   bool _busy = false;
+  Future<void>? _inFlight;
   bool _disposed = false;
+  Future<void>? _disposal;
 
   /// The current state.
   BoardSessionState get state => _state;
@@ -131,12 +133,20 @@ class BoardSession {
   );
 
   /// [disconnect]s and closes all streams. The session cannot be reused.
-  Future<void> dispose() async {
-    if (_disposed) return;
+  ///
+  /// Safe to call at any time, also while [connect] is still running: the
+  /// pending operation finishes first, then the session is released.
+  Future<void> dispose() => _disposal ??= _dispose();
+
+  Future<void> _dispose() async {
+    _disposed = true; // reject new operations from here on
     try {
-      await disconnect();
+      // A failure of the pending operation is reported to its own caller.
+      await _inFlight?.catchError((_) {});
+      _busy = true;
+      await _disconnect();
     } finally {
-      _disposed = true;
+      _busy = false;
       await _stateController.close();
       for (final c in _dataControllers.values) {
         await c.close();
@@ -185,9 +195,10 @@ class BoardSession {
     }
     _busy = true;
     try {
-      await run();
+      await (_inFlight = run());
     } finally {
       _busy = false;
+      _inFlight = null;
     }
   }
 

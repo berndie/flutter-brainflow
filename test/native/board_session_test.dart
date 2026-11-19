@@ -79,6 +79,15 @@ void main() {
     await session.dispose(); // idempotent
   });
 
+  test('dispose during connect waits, then releases', () async {
+    final session = BoardSession(_synthetic);
+    final connecting = session.connect();
+    await session.dispose();
+    await connecting;
+    expect(session.shim.isPrepared, isFalse);
+    expect(session.state, BoardSessionState.disconnected);
+  });
+
   test('invalid transitions throw StateError', () async {
     final session = BoardSession(_synthetic);
     expect(session.startStreaming, throwsStateError);
