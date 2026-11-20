@@ -3,6 +3,26 @@
 // The BrainFlow .so files are bundled by hook/build.dart (native assets). This
 // module only exists to ship SimpleBLE's Java bridge classes, which SimpleBLE
 // (and therefore BrainFlow's BLE boards) look up via JNI at runtime.
+//
+// The bridge classes are not vendored: extractSimplebleBridge takes
+// libs/simpleble-bridge.jar out of the pinned, unmodified brainflow-android.aar
+// at build time. The AAR is shared with the build hook (same cache file, same
+// lock file, same SHA-256 from hook/brainflow_release.dart):
+//   - Gradle property `flutter_brainflow.aar` (e.g. in the app's
+//     android/gradle.properties): path to a local brainflow-android.aar, for
+//     offline builds, else
+//   - `<download_cache>/<version>/brainflow-android.aar` if the app's pubspec
+//     sets the `download_cache` user-define (read like the hook does), else
+//   - `$HOME/.cache/flutter_brainflow/<version>/brainflow-android.aar`
+//     (`%LOCALAPPDATA%` on Windows).
+// Downloaded if missing.
+
+import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.security.MessageDigest
+import java.util.zip.ZipFile
 
 group = "org.brainflow.flutter_brainflow"
 version = "1.0"
@@ -44,7 +64,130 @@ android {
     }
 }
 
+// --- SimpleBLE bridge classes from the pinned BrainFlow AAR -----------------
+
+def release = file("../hook/brainflow_release.dart").text
+def bfVersion = (release =~ /const brainflowVersion = '([^']+)';/)[0][1]
+def aarSha256 = (release =~ /'brainflow-android\.aar',\s*'([0-9a-f]{64})'/)[0][1]
+
+// The pubspec the hook reads user-defines from: Flutter passes the one next to
+// the resolution root's .dart_tool/package_config.json (the app, or the pub
+// workspace root). Gradle's root project is the app's android/ directory.
+def workspacePubspec = {
+    for (def dir = rootProject.projectDir.parentFile; dir != null; dir = dir.parentFile) {
+        if (new File(dir, ".dart_tool/package_config.json").isFile()) {
+            def pubspec = new File(dir, "pubspec.yaml")
+            return pubspec.isFile() ? pubspec : null
+        }
+    }
+    return null
+}
+
+// Reads hooks.user_defines.flutter_brainflow.<key> (a scalar) from a pubspec.
+// Indentation-based, enough for this one nested key; no YAML library on the
+// build classpath.
+def readUserDefine = { File pubspec, String key ->
+    def wanted = ["hooks", "user_defines", "flutter_brainflow", key]
+    def stack = [] // [indent, key] of the enclosing mapping keys
+    for (line in pubspec.readLines()) {
+        def m = line =~ /^(\s*)([A-Za-z0-9_]+)\s*:\s*(.*?)\s*$/
+        if (!m.matches()) continue
+        def indent = m.group(1).length()
+        while (stack && stack.last()[0] >= indent) stack.removeLast()
+        stack << [indent, m.group(2)]
+        if (stack*.getAt(1) == wanted) {
+            def value = m.group(3).replaceFirst(/\s+#.*$/, "")
+            return value.replaceAll(/^(['"])(.*)\1$/, '$2') ?: null
+        }
+    }
+    return null
+}
+
+// Same location as the hook's _cacheDir() in hook/build.dart.
+def aarPath = providers.gradleProperty("flutter_brainflow.aar").orElse(
+    providers.provider {
+        def file = "${bfVersion}/brainflow-android.aar"
+        def pubspec = workspacePubspec()
+        def custom = pubspec ? readUserDefine(pubspec, "download_cache") : null
+        if (custom) {
+            def dir = new File(custom)
+            return new File(dir.absolute ? dir : new File(pubspec.parentFile, custom), file)
+                    .canonicalPath
+        }
+        def windows = System.getProperty("os.name").toLowerCase().contains("windows")
+        def base = windows ? System.getenv("LOCALAPPDATA") : System.getenv("HOME")
+        def sub = windows ? "flutter_brainflow" : ".cache/flutter_brainflow"
+        new File(base, "${sub}/${file}").path
+    })
+
+abstract class ExtractSimplebleBridge extends DefaultTask {
+    @Input abstract Property<String> getUrl()
+    @Input abstract Property<String> getSha256()
+    @Input abstract Property<String> getAarPath()
+    @OutputFile abstract RegularFileProperty getJar()
+
+    @TaskAction
+    void extract() {
+        def aar = new File(aarPath.get())
+        aar.parentFile.mkdirs()
+        // Same lock file as hook/build.dart, which may download concurrently.
+        def lockFile = new File(aar.path + ".lock")
+        FileChannel.open(lockFile.toPath(), StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE).withCloseable { channel ->
+            def lock = channel.lock()
+            try {
+                if (!aar.exists() || sha256Of(aar) != sha256.get()) download(aar)
+            } finally {
+                lock.release()
+            }
+        }
+        def out = jar.get().asFile
+        out.parentFile.mkdirs()
+        new ZipFile(aar).withCloseable { zip ->
+            def entry = zip.getEntry("libs/simpleble-bridge.jar")
+            if (entry == null) {
+                throw new GradleException("${aar} has no libs/simpleble-bridge.jar")
+            }
+            zip.getInputStream(entry).withCloseable {
+                Files.copy(it, out.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+    }
+
+    void download(File aar) {
+        logger.lifecycle("flutter_brainflow: downloading ${url.get()}")
+        def partial = new File(aar.path + ".part")
+        new URL(url.get()).openStream().withCloseable {
+            Files.copy(it, partial.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+        def actual = sha256Of(partial)
+        if (actual != sha256.get()) {
+            partial.delete()
+            throw new GradleException("Checksum mismatch for ${url.get()}: " +
+                    "expected ${sha256.get()}, got ${actual}")
+        }
+        Files.move(partial.toPath(), aar.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    static String sha256Of(File file) {
+        def digest = MessageDigest.getInstance("SHA-256")
+        file.withInputStream { input ->
+            def buffer = new byte[1 << 16]
+            int n
+            while ((n = input.read(buffer)) > 0) digest.update(buffer, 0, n)
+        }
+        digest.digest().encodeHex().toString()
+    }
+}
+
+def extractSimplebleBridge = tasks.register("extractSimplebleBridge", ExtractSimplebleBridge) {
+    url = "https://github.com/brainflow-dev/brainflow/releases/download/" +
+            "${bfVersion}/brainflow-android.aar"
+    sha256 = aarSha256
+    it.aarPath = aarPath
+    jar = layout.buildDirectory.file("simpleble/simpleble-bridge.jar")
+}
+
 dependencies {
-    // From brainflow-android.aar (libs/simpleble-bridge.jar), see android/libs/README.md.
-    implementation(files("libs/simpleble-bridge.jar"))
+    implementation(files(extractSimplebleBridge.flatMap { it.jar }).builtBy(extractSimplebleBridge))
 }

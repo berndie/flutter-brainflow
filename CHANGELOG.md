@@ -22,3 +22,8 @@ Versions track BrainFlow: `<ourVersion>+bf<brainflowVersion>` (from M6 on).
 - Example app: board picker, live EEG plot and band powers (Linux, Android).
 - `BoardData`, `BoardDescription`, `BrainFlowInputParams`,
   `BrainFlowException`.
+- MIT license for the package's own code; `THIRD_PARTY_NOTICES.md` covers
+  BrainFlow, SimpleBLE and ONNX Runtime.
+- Android: SimpleBLE's bridge classes are no longer vendored. Gradle extracts
+  them at build time from the pinned BrainFlow AAR (Gradle property
+  `flutter_brainflow.aar` for a local copy).

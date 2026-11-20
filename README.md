@@ -90,7 +90,20 @@ On Linux, Bluetooth boards also need `libdbus-1.so.3` (BLE via BlueZ) and
 Vendor SDK helpers (g.tec Unicorn, ANT Neuro eego, ...) are not bundled;
 provide them via `lib_dir`.
 
+On Android, the plugin's Gradle module also extracts SimpleBLE's Java bridge
+classes from the same BrainFlow AAR. It uses the same cache file as the hook,
+including a custom `download_cache`, so the AAR is downloaded only once. For
+offline builds, point it at a local copy in your app's
+`android/gradle.properties`:
+
+```properties
+flutter_brainflow.aar=/path/to/brainflow-android.aar
+```
+
 ## License
 
-Not chosen yet (no `LICENSE` file). BrainFlow itself is MIT licensed; see
-`third_party/brainflow/include/LICENSE`.
+flutter_brainflow's own code is MIT licensed, see [`LICENSE`](LICENSE). The
+package itself does not redistribute BrainFlow binaries. It downloads the
+official release at build time and bundles it into your app, and that release
+includes SimpleBLE, which comes with its own usage restrictions. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) before you ship an app.

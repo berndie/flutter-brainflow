@@ -113,6 +113,8 @@ bool _isSharedLib(String name, OS os) => switch (os) {
 
 // --- download + extract ------------------------------------------------------
 
+// android/build.gradle (extractSimplebleBridge) mirrors this to share the AAR;
+// keep both in sync.
 Uri _cacheDir(BuildInput input) {
   final custom = input.userDefines.path('download_cache');
   if (custom != null) return custom;

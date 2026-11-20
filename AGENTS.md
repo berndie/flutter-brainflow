@@ -39,8 +39,15 @@ and processing) to Dart/Flutter apps.
    (`hook/brainflow_version.dart`) and must match the vendored headers.
 3. **Android needs a small `android/` Gradle part as well:** SimpleBLE's
    Java bridge classes (`libs/simpleble-bridge.jar` in the AAR) must end up in
-   the APK, which a build hook cannot do. minSdk is **31** (BrainFlow's AAR
-   requires it). No Kotlin plugin code needed so far.
+   the APK, which a build hook cannot do. The jar is **not vendored**: the
+   `extractSimplebleBridge` task in `android/build.gradle` takes it out of the
+   pinned AAR at build time (same cache file, lock file and SHA-256 as the
+   hook; version and hash are parsed from `hook/brainflow_release.dart`; it
+   reads the `download_cache` user-define from the same pubspec Flutter hands
+   the hook, the one next to `.dart_tool/package_config.json`; Gradle property
+   `flutter_brainflow.aar` overrides the path). Keep its cache-dir logic in
+   sync with `_cacheDir()` in `hook/build.dart`. minSdk is
+   **31** (BrainFlow's AAR requires it). No Kotlin plugin code needed so far.
 4. **Two API layers:**
    - `BoardShim` (sync, 1:1 with BrainFlow): thin, predictable, easy to diff
      against the Python binding.
@@ -59,11 +66,13 @@ and processing) to Dart/Flutter apps.
 ```
 flutter_brainflow/
 ├── AGENTS.md, README.md, CHANGELOG.md
+├── LICENSE                      # plain MIT, our code only (pub.dev detects it)
+├── THIRD_PARTY_NOTICES.md       # BrainFlow (verbatim, incl. SimpleBLE notice), ONNX Runtime
 ├── pubspec.yaml
 ├── hook/
 │   ├── build.dart               # downloads/locates libs, registers CodeAssets
 │   └── brainflow_release.dart   # single source of truth: version, sha256, libs
-├── android/                     # Gradle only: simpleble-bridge.jar, minSdk 31
+├── android/                     # Gradle only: extracts simpleble-bridge.jar, minSdk 31
 ├── third_party/brainflow/include/  # vendored headers for the pinned version
 ├── lib/
 │   ├── flutter_brainflow.dart   # public exports only
@@ -223,8 +232,9 @@ Each milestone ends with green analyze + tests and an updated README/CHANGELOG.
 
 **M1 – Package skeleton and native delivery (done 2026-11-19)**
 - `flutter create --template=package_ffi` (or equivalent) plus an `android/`
-  Gradle part for `simpleble-bridge.jar`; vendored headers, `ffigen.yaml`
-  (`ffi-native` with asset ids), `tool/update_brainflow.sh`.
+  Gradle part that extracts `simpleble-bridge.jar` from the AAR; vendored
+  headers, `ffigen.yaml` (`ffi-native` with asset ids),
+  `tool/update_brainflow.sh`.
 - `hook/build.dart`: download + sha256 check + `lib_dir` user-define override.
   The upstream archives are 118 MB / 100 MB and contain every OS; prefer
   repackaging them per OS/ABI (~5 MB each) into our own GitHub release assets
@@ -278,7 +288,22 @@ and classifiers. Verified: the bundled `libonnxruntime_x64.so` is found by
     BrainFlow's "dlopen helpers from my own directory" may not find them.
     Verify on a Mac before adding the target; `lib_dir` works meanwhile only
     if that is solved too.
-  - Decisions needed from the maintainer before publishing: package
-    license (no `LICENSE` yet), `publish_to`, and whether to host per-target
-    repackaged archives as GitHub release assets (hook currently downloads
-    the 118 MB / 100 MB upstream archives once into `~/.cache`).
+  - Decisions needed from the maintainer before publishing: `publish_to`,
+    and whether to host per-target repackaged archives as GitHub release
+    assets (hook currently downloads the 118 MB / 100 MB upstream archives
+    once into `~/.cache`). License: decided (MIT + `THIRD_PARTY_NOTICES.md`).
+  - **SimpleBLE licensing blocks repackaging (2026-11-20).** BrainFlow
+    ships SimpleBLE under a license from The California Open Source Company
+    LLC. BrainFlow's notice forbids extracting, separating or distributing
+    SimpleBLE outside BrainFlow (see `THIRD_PARTY_NOTICES.md`). Hosting our
+    own per-target archives would mean redistributing `libsimpleble-c` (and
+    the bridge jar), so **don't repackage or re-host any BrainFlow archive**
+    until we have written permission from contact@simpleble.org (and
+    ideally a confirmation from BrainFlow). Ask whether (1) a wrapper that
+    downloads the unmodified official release at build time is covered, and
+    (2) re-hosting per-target archives is allowed. For the same reason the
+    bridge jar is extracted at build time rather than committed, and our
+    `LICENSE` must not restate the SimpleBLE notice as if we could grant
+    or restrict rights to it. Until there's an answer, keep downloading
+    upstream archives; that is the safe path. Not legal advice; the
+    maintainer decides.

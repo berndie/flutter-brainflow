@@ -4,7 +4,7 @@
 #   tool/update_brainflow.sh 5.24.0
 #
 # Downloads the release headers and archives, updates hook/brainflow_release.dart
-# (version + SHA-256), refreshes android/libs/simpleble-bridge.jar and
+# (version + SHA-256; android/build.gradle reads both from there) and
 # regenerates the Dart bindings and enums. Review the diff afterwards: new
 # functions in the headers need wrapping, changed signatures need fixing.
 set -euo pipefail
@@ -44,12 +44,6 @@ sed -i -E "s/^const brainflowVersion = '.*';/const brainflowVersion = '${version
 # The SHA-256 is the line after each archive's file name.
 sed -i -E "/'compiled_libs.tar',/{n;s/'[0-9a-f]{64}'/'${sha_tar}'/}" "${release}"
 sed -i -E "/'brainflow-android.aar',/{n;s/'[0-9a-f]{64}'/'${sha_aar}'/}" "${release}"
-
-echo "==> android/libs/simpleble-bridge.jar"
-unzip -o -q -j "${cache}/brainflow-android.aar" libs/simpleble-bridge.jar -d "${root}/android/libs"
-sha_jar="$(sha256sum "${root}/android/libs/simpleble-bridge.jar" | cut -d' ' -f1)"
-sed -i -E "s/BrainFlow [0-9][0-9.]* \(SHA-256/BrainFlow ${version} (SHA-256/; s/\`[0-9a-f]{64}\`/\`${sha_jar}\`/" \
-  "${root}/android/libs/README.md"
 
 echo "==> Regenerate bindings and enums"
 cd "${root}"
