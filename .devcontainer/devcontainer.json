@@ -1,6 +1,6 @@
 // .devcontainer/devcontainer.json
 {
-  "name": "Flutter + Android SDK (Muse wrapper)",
+  "name": "Flutter brainflow wrapper",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
 
   "features": {
