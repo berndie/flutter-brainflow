@@ -27,8 +27,10 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
-      # Android needs a Gradle module for SimpleBLE's Java bridge classes.
-      # Native libraries themselves are delivered by hook/build.dart on every
-      # platform.
+      # Android needs a Gradle module for SimpleBLE's Java bridge classes and
+      # its preload shim (pluginClass). Native libraries themselves are
+      # delivered by hook/build.dart on every platform.
       android:
         ffiPlugin: true
+        package: org.brainflow.flutter_brainflow
+        pluginClass: FlutterBrainflowPlugin

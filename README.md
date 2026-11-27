@@ -100,6 +100,9 @@ offline builds, point it at a local copy in your app's
 flutter_brainflow.aar=/path/to/brainflow-android.aar
 ```
 
+It also preloads SimpleBLE when the Flutter engine starts, so BLE boards work
+when BrainFlow is called from Dart. Nothing to do in your app.
+
 ## License
 
 flutter_brainflow's own code is MIT licensed, see [`LICENSE`](LICENSE). The

@@ -27,3 +27,6 @@ Versions track BrainFlow: `<ourVersion>+bf<brainflowVersion>` (from M6 on).
 - Android: SimpleBLE's bridge classes are no longer vendored. Gradle extracts
   them at build time from the pinned BrainFlow AAR (Gradle property
   `flutter_brainflow.aar` for a local copy).
+- Android: BLE boards (e.g. Muse 2) work from Flutter. A small plugin class
+  preloads SimpleBLE on a Java thread so it finds its bridge classes, and
+  loads `libsimpleble-c.so` so its JNI callbacks resolve. No app code needed.

@@ -72,7 +72,7 @@ flutter_brainflow/
 ├── hook/
 │   ├── build.dart               # downloads/locates libs, registers CodeAssets
 │   └── brainflow_release.dart   # single source of truth: version, sha256, libs
-├── android/                     # Gradle only: extracts simpleble-bridge.jar, minSdk 31
+├── android/                     # extracts simpleble-bridge.jar, SimpleBLE preload shim; minSdk 31
 ├── third_party/brainflow/include/  # vendored headers for the pinned version
 ├── lib/
 │   ├── flutter_brainflow.dart   # public exports only
@@ -170,9 +170,19 @@ and run native tests if you touched `ffi/`, `board/`, `data_filter/`, `ml/` or
   imports `JNI_GetCreatedJavaVMs@LIBNATIVEHELPER_S`, so it **cannot load below
   API 31** and finds the JavaVM itself. `java_set_jnienv` is therefore not
   needed (the Java binding calls it, but on Android it only forwards the VM to
-  SimpleBLE). Unverified on a device: whether SimpleBLE can find the bridge
-  classes from a Flutter app. If not, call `simpleble_android_set_jvm` or
-  `java_set_jnienv` from a tiny Kotlin/JNI shim.
+  SimpleBLE).
+- Android: SimpleBLE looks up its bridge classes (`FindClass`) once, on first
+  use, and caches them. BrainFlow first uses it in `prepare_session`, called
+  from a Dart thread, which only sees the system class loader, so a BLE board
+  aborts with `JNI DETECTED ERROR ... ClassNotFoundException:
+  org.simpleble.android.bridge.BluetoothGattCallback`. `FlutterBrainflowPlugin`
+  (Java) runs `SimpleBlePreload` when an engine attaches: it makes that first
+  use from a Java thread (`android/src/main/cpp/simpleble_preload.c` calls
+  `simpleble_adapter_get_count`), so the classes get cached for every thread.
+  It also loads `libsimpleble-c.so` with `System.loadLibrary`; otherwise the
+  bridge's `native` callbacks fail with `UnsatisfiedLinkError`, because ART
+  doesn't resolve them in libraries opened with `dlopen`. Logcat shows
+  `simpleble_preload: preloaded, N adapter(s)`.
 - Android AAR libs are unstripped (114 MB per ABI); AGP strips them to ~5 MB
   when packaging, so the hook does not need to strip. Skip `libjnidispatch.so`
   (that's JNA for the Java binding).
